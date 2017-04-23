@@ -67,15 +67,6 @@ def label_modifications(chunks, recursion = False):
             and chunks[index]["operation_type"] != "MODIFICATION"\
             and chunks[subindex]["operation_type"] != "MODIFICATION":
 
-                 if chunks[index]["xml"].tag == "broken" and recursion == False:
-                     # not recursion over anonymous list : index are bad
-                     subchunks = label_modifications([chunks[index], chunks[subindex]], True)
-                     chunks[index] = subchunks[0]
-                     chunks[subindex] = subchunks[1]
-                     print subchunks
-                     exit(-1)
-                     continue
-
                  chunks[index]["replaced_by"] = subindex
                  chunks[subindex]["replacing"] = index
 
@@ -86,30 +77,24 @@ def label_modifications(chunks, recursion = False):
 
 # print chunk["xml"].tag
 def eval_operations(chunks):
+    res = []
     for chunk in chunks:
         chunk_content = get_chunk_content(chunk)
         try:
             chunk["xml"] = etree.fromstring(chunk_content)
+            res.append(chunk)
         except Exception as e:
-            # if we can't parse it as one chunk
-            # we parse each chunks, by line
-            # and should recreate chunks to add
-            xml = etree.Element("broken")
-
             # use the lines instead of the all chunk
             for line in chunk["lines"]:
                 try:
-                    xml.append(etree.fromstring(line.content))
-                except:
+                    new_chunk = create_chunk([line], ADDITION if chunk["operation_type"]  == "ADDITION" else SUPPRESSION)
+                    new_chunk["xml"] = etree.fromstring(line.content)
+                    res.append(new_chunk)
+                except Exception as e:
                     pass
-            chunk["xml"] = xml
 
             # FIXME : remove real broken one
-            
-            #print "in broken"
-            #for each in xml:
-            #    print each
-    return chunks
+    return res
 
 
 def begin_lineno(chunk):
@@ -176,11 +161,7 @@ def bind_objects(patches):
 def print_chunk_tags(chunks):
     for chunk in chunks:
         if chunk["xml"] is not None:
-            if chunk["xml"].tag == "broken":
-                for node in chunk["xml"]:
-                    print node.tag
-            else:
-                print chunk["xml"].tag
+            print chunk["xml"].tag
 
 def get_track_name(chunk, track_linenos):
     for track_type, tracks in track_linenos.iteritems():
@@ -202,6 +183,8 @@ def name_chunk_parent(chunks, linenos):
 def git_analysis(repository_name, linenos):
     repo = Repository(repository_name)
     d = repo.diff()
+
+    # FIXME : how to reference and older commit?
     
     patches = [p for p in d]
 
