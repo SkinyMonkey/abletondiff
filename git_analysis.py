@@ -60,8 +60,8 @@ def label_modifications(chunks, recursion = False):
     while index < len(chunks):
         subindex = index + 1
 
-        if  subindex < len(chunks) \
-            and chunks[subindex]["xml"] is not None \
+        while subindex < len(chunks):
+            if  chunks[subindex]["xml"] is not None \
             and chunks[index]["xml"] is not None \
             and chunks[subindex]["xml"].tag == chunks[index]["xml"].tag\
             and chunks[index]["operation_type"] != "MODIFICATION"\
@@ -72,6 +72,8 @@ def label_modifications(chunks, recursion = False):
 
                  chunks[index]["operation_type"] = "MODIFICATION"
                  chunks[subindex]["operation_type"] = "MODIFICATION"
+            subindex += 1
+
         index += 1
     return chunks
 
@@ -193,6 +195,6 @@ def git_analysis(repository_name, linenos):
     chunks = label_modifications(chunks)
     chunks = name_chunk_parent(chunks, linenos)
 
-    print_chunk_tags(chunks)
+    # print_chunk_tags(chunks)
     
     describe_operation(chunks, linenos)
