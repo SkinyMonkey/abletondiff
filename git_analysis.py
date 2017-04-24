@@ -30,10 +30,15 @@ def target_name(target_tag):
 
 # TODO : rewrite, cleanly
 def display_changed_attributes(chunk_tag, old_chunk, new_chunk):
-    for name, value in old_chunk["xml"].attrib.iteritems():
-        if value != new_chunk["xml"].attrib[name]:
-            # FIXME : device, need a more precise context
-            print "In %s : %s, %s changed from %s to %s" % (new_chunk['name'], chunk_tag, name, value, new_chunk["xml"].attrib[name])
+    for attribute_name, value in old_chunk["xml"].attrib.iteritems():
+        if value != new_chunk["xml"].attrib[attribute_name]:
+            if new_chunk.get("device_name"):
+                print "In %s , %s: parameter %s, %s changed from %s to %s" %\
+                    (new_chunk["track_name"], new_chunk["device_name"], chunk_tag, attribute_name, value, new_chunk["xml"].attrib[attribute_name])
+            else:
+                # FIXME : device, need a more precise context
+                print "In %s : %s, %s changed from %s to %s" %\
+                    (new_chunk["track_name"], chunk_tag, attribute_name, value, new_chunk["xml"].attrib[attribute_name])
 
 def describe_operation(chunks, linenos):
     # description could be a hashmap with attributes, there is a lot of attributes to check
@@ -165,19 +170,38 @@ def print_chunk_tags(chunks):
         if chunk["xml"] is not None:
             print chunk["xml"].tag
 
-def get_track_name(chunk, track_linenos):
+def get_track(chunk, track_linenos):
     for track_type, tracks in track_linenos.iteritems():
         for track in tracks:
-            if chunk['begin_lineno'] >= track['begin']\
-             and chunk['end_lineno'] <= track['end']:
-                return track['name']
+            if chunk["begin_lineno"] >= track["begin"]\
+             and chunk["end_lineno"] <= track["end"]:
+                return track
 
     raise Exception("could not determine the track name")
 
+def get_device(chunk, track, subtype):
+    for device_type, devices in track[subtype].iteritems():
+        for device in devices:
+            if chunk["begin_lineno"] >= device["begin"]\
+            and chunk["end_lineno"] <= device["end"]:
+                return (device, device_type)
+    return (None, None)
 
 def name_chunk_parent(chunks, linenos):
     for chunk in chunks:
-        chunk["name"] = get_track_name(chunk, linenos)
+        track = get_track(chunk, linenos)
+        chunk["track_name"] = track["name"]
+
+        (device, device_type) = get_device(chunk, track, "Devices")
+        if device is not None:
+            chunk["device_type"] = "Devices"
+            chunk["device_name"] = device["name"]
+        
+        if chunk.get("device_type") is None:
+            (device, device_type) = get_device(chunk, track, "DeviceChain")
+            if device is not None:
+                chunk["device_type"] = "DeviceChain"
+                chunk["device_name"] = device["name"]
 
     return chunks
 
