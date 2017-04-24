@@ -1,6 +1,8 @@
 import gzip
 from lxml import etree
 
+from pprint import pprint
+
 def get_name(content):
     # res = content.xpath(".//Name/EffectiveName")
     res = content.find(".//Name/EffectiveName")
@@ -9,7 +11,32 @@ def get_name(content):
         return res.attrib["Value"]
     return res
 
-def compute_elements_linenos(tree, watched):
+# FIXME : is there a better way to do this?
+#         maybe we can put this into the compute_elements_linenos loop
+#         what about the node that have no parent's parent?
+
+# FIXME : maybe a better way to do this is to iterate over the all project
+#         and add the end line to each node
+def find_end(linenos):
+    for element, value in linenos.iteritems():
+        for entry in value:
+            if entry["end"] == 0:
+
+                parent = entry["node"].getparent()
+                parent_next = parent.getnext()
+
+                while parent is not None and parent_next is None:
+                    parent = parent.getparent()
+                    parent_next = parent.getnext()
+
+                if parent_next is not None:
+                    entry["end"] = parent_next.sourceline
+                else:
+                    raise Exception("could not find proper end line")
+    return linenos
+
+def compute_elements_linenos(tree, watched, callback = None):
+    greedy = len(watched) == 0
     linenos = { w : [] for w in watched }
     flags = { w : False for w in watched }
 
@@ -20,17 +47,43 @@ def compute_elements_linenos(tree, watched):
                 flags[k] = False
                 break
 
-        if content.tag in watched:
-            linenos[content.tag].append({ "begin": content.sourceline , "end": 0,"name" : get_name(content)})
+        if greedy or content.tag in watched:
+            if greedy and linenos.get(content.tag) is None:
+                linenos[content.tag] = []
+
+            name = get_name(content)
+
+            linenos[content.tag].append({ "begin": content.sourceline,
+                                          "end": 0,
+                                          "name" : name if name is not None else content.tag,
+                                          "node": content })
             flags[content.tag] = True
 
-# FIXME : todo, outside of here if possible
-#    pprint(flags)
-#    for flag, value in flags.iteritems():
-#        if value == True:
-#            linenos[flag][-1]["end"] = VALUE_FROM_MAIN_ELEMENTS_LINENO
+            if callback is not None:
+                callback(content, linenos[content.tag][-1])
+    
+    return find_end(linenos)
 
-    return linenos
+def attach_devices_linenos(tree, lineno_entry):
+    """
+    Attach Devices and DeviceChain begin and end line nos
+    to each Track.
+    That way if a change is detected in a Track, we can proceed to checks on device and devicechain too
+    """
+
+    # NOTE : put in tracks : that way when you detect an element as being part of a track
+    #        you can begin detecting if it's part of devices or devicechain of that same track
+
+    devices = tree.xpath(".//Devices")[0]
+    device_elements = []
+
+    lineno_entry['Devices'] = compute_elements_linenos(devices, device_elements)
+
+    devices = tree.xpath(".//DeviceChain")[0]
+    device_elements = []
+    
+    lineno_entry['DeviceChain'] = compute_elements_linenos(devices, device_elements)
+ 
 
 def project_analysis(project_name):
     # we want to know in what kind of element the change happened
@@ -60,12 +113,8 @@ def project_analysis(project_name):
         tracks = project.xpath("//Tracks")[0]
         track_elements = ["AudioTrack", "MidiTrack", "GroupTrack", "ReturnTrack"]
 
-        linenos.update(compute_elements_linenos(tracks, track_elements))
-    
-        return linenos
+        linenos.update(compute_elements_linenos(tracks, track_elements, attach_devices_linenos))
 
-    # describe operation is good but add context to it helps to know
-    # exactly what was changed:
-    # know that a midi note changed is cool, but useless if we don't have context
-    # use line numbers to detect the context of the change?
-    # maybe by analysing the project to get tracks open and end tag
+        # pprint(linenos)
+   
+        return linenos
