@@ -177,6 +177,8 @@ def get_track(chunk, track_linenos):
              and chunk["end_lineno"] <= track["end"]:
                 return track
 
+    pprint(chunk)
+    print(get_chunk_content(chunk))
     raise Exception("could not determine the track name")
 
 def get_device(chunk, track, subtype):
@@ -208,11 +210,17 @@ def name_chunk_parent(chunks, linenos):
 
 def git_analysis(repository_name, linenos):
     repo = Repository(repository_name)
-    d = repo.diff()
+    commit1 = None # repo.get("d04b7a21c4eabe7058d2649ef6d2d59de70b5352")
+    commit2 = None # repo.get("f25108a7c1d96317d2026f4f19d2a6fe49283151")
+    d = repo.diff(commit1, commit2)
 
     # FIXME : how to reference and older commit?
     
     patches = [p for p in d]
+
+    if len(patches) == 0:
+        print "No modification applied"
+        exit(-1)
 
     chunks = bind_objects(patches)
     chunks = eval_operations(chunks)
