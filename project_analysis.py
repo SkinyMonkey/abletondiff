@@ -85,7 +85,7 @@ def attach_devices_linenos(tree, lineno_entry):
     lineno_entry['DeviceChain'] = compute_elements_linenos(devices, device_elements)
  
 
-def project_analysis(project_name):
+def project_analysis(file_content):
     # we want to know in what kind of element the change happened
     # for that we have to find it into the tree
     # that way with the xpath we can have the path
@@ -98,23 +98,21 @@ def project_analysis(project_name):
     linenos = {}
 
     # project analysis
-    with gzip.open(project_name, 'rb') as f:
-        file_content = f.read()
 
-        ### Tracks, MasterTrack, PreHearTrack begin and end line nos
-        project = etree.fromstring(file_content)
+    ### Tracks, MasterTrack, PreHearTrack begin and end line nos
+    project = etree.fromstring(file_content)
 
-        liveset = project.xpath("//LiveSet")[0]
-        main_elements = ["MasterTrack", "PreHearTrack"] # Tracks
+    liveset = project.xpath("//LiveSet")[0]
+    main_elements = ["MasterTrack", "PreHearTrack"] # Tracks
 
-        linenos = compute_elements_linenos(liveset, main_elements)
+    linenos = compute_elements_linenos(liveset, main_elements)
 
-        ### Track begin and end line nos
-        tracks = project.xpath("//Tracks")[0]
-        track_elements = ["AudioTrack", "MidiTrack", "GroupTrack", "ReturnTrack"]
+    ### Track begin and end line nos
+    tracks = project.xpath("//Tracks")[0]
+    track_elements = ["AudioTrack", "MidiTrack", "GroupTrack", "ReturnTrack"]
 
-        linenos.update(compute_elements_linenos(tracks, track_elements, attach_devices_linenos))
+    linenos.update(compute_elements_linenos(tracks, track_elements, attach_devices_linenos))
 
-        # pprint(linenos)
+    # pprint(linenos)
    
-        return linenos
+    return linenos
