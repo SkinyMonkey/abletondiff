@@ -5,10 +5,11 @@ def audioclip(level_index, v):
     return level_index
 
 def events(level_index, v):
-    if len(v.element.getchildren()) > len(v.old_chunk["xml"].getchildren()):
+    if v.old_chunk is None or\
+        len(v.element.getchildren()) > len(v.old_chunk["xml"].getchildren()):
         v.display("events were added")
         if v.element_left(level_index):
-            call_next_tag(level_index, v)
+            v.call_next_tag(level_index)
         else:
             for child in v.element:
                 v.element = child

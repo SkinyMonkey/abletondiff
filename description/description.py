@@ -76,6 +76,9 @@ def coherence_check(project_element, chunk):
         raise Exception("Algorithm problem : element offset is not right")
 
 def describe_operation(chunks, elements):
+    #import pdb; pdb.set_trace()
+    # FIXME : what to do if element was simply added?
+
     roottree = elements[0].getroottree()
     for chunk in chunks:
         if chunk["operation_type"] == "MODIFICATION"\
@@ -94,3 +97,20 @@ def describe_operation(chunks, elements):
                          ,LEVEL_DESCRIPTION)
  
            v.call_next_tag(0)
+
+        elif chunk["operation_type"] == "ADDITION":
+           current_state_element = elements[element_index(chunk)]
+           element_path = roottree.getpath(current_state_element)
+           element_path_split = element_path.split('/')[1:]
+
+           coherence_check(current_state_element, chunk)
+
+           v = VisitState(current_state_element\
+                         ,element_path_split\
+                         ,chunk\
+                         ,None
+                         ,LEVEL_DESCRIPTION)
+           
+           v.call_next_tag(0)
+        elif chunk["operation_type"] == "SUPPRESSION":
+            print "HERE"

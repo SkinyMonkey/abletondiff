@@ -59,12 +59,23 @@ class VisitState(object):
         """
         tail_element_path = self.element_path[level_index:]
         for level in tail_element_path:
-            if level in self.level_map:
+            try:
+                bracket_index = level.index('[')
+                level_name = level[:bracket_index]
+            except:
+                level_name = level
+            
+            if level_name in self.level_map:
                 return level
 
     def call_level_map(self, level_index, tag):
         self.indent += 1
-        next_level_index = self.level_map[tag](level_index, self)
+        try:
+            bracket_index = tag.index('[')
+            tag_name = tag[:bracket_index]
+        except:
+            tag_name = tag
+        next_level_index = self.level_map[tag_name](level_index, self)
         self.indent -= 1
         return next_level_index
     
@@ -73,14 +84,13 @@ class VisitState(object):
         Call the next level in the xpath that has a callback in $level_map
         """
         next_tag = self.get_next_level(level_index + 1)
-#        if self.element_path[-1] == "ArrangerAutomation":
-#            import pdb; pdb.set_trace()
     
         if next_tag is not None:
+            # FIXME : bracket removal behaviour?
             level_index = self.element_path.index(next_tag)
 
             return self.call_level_map(level_index, next_tag)
-    
+
         raise Exception("No handler for %s" % self.element_path[-1])
 
     def display(self, message):
