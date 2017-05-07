@@ -24,9 +24,9 @@ def main():
 
     project_content = update_local_file(project_directory, project_name)
 
-    project_linenos = project_analysis(project_content)
+    elements = project_analysis(project_content)
     
-    result = git_analysis(repository_name, project_linenos)
+    result = git_analysis(repository_name, elements)
 
 if __name__ == "__main__":
     main()
