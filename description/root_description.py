@@ -1,39 +1,40 @@
 from sub_description import SUB_LEVEL_DESCRIPTION
 from common import get_next_level, get_next_element, compute_change
 
-def call_next_tag(level_index, element, element_path, chunk, old_chunk):
-    next_tag = get_next_level(level_index + 1, element_path, LEVEL_DESCRIPTION)
+def call_next_tag(c):
+    c.level_index += 1
+    next_tag = get_next_level(c.level_index, c.element_path, LEVEL_DESCRIPTION)
 
     if next_tag is not None:
-        level_index = element_path.index(next_tag)
-        return LEVEL_DESCRIPTION[next_tag](level_index, element, element_path, chunk, old_chunk)
+        c.level_index = c.element_path.index(next_tag)
+        return LEVEL_DESCRIPTION[next_tag](c)
 
-    next_tag = get_next_level(level_index + 1, element_path, SUB_LEVEL_DESCRIPTION)
+    next_tag = get_next_level(c.level_index, c.element_path, SUB_LEVEL_DESCRIPTION)
     
     if next_tag is not None:
-        level_index = element_path.index(next_tag)
-        return SUB_LEVEL_DESCRIPTION[next_tag](level_index, element, element_path, chunk, old_chunk)
+        c.level_index = c.element_path.index(next_tag)
+        return SUB_LEVEL_DESCRIPTION[next_tag](c)
 
-    print element_path[level_index]
-    print element_path
+    print c.element_path[c.level_index]
+    print c.element_path
     raise Exception("Next tag could not be found")
 
-def arranger(level_index, element, element_path, chunk, old_chunk):
-    print "Elements were changed in the arrangement view"
-    call_next_tag(level_index, element, element_path, chunk, old_chunk)
+def arranger(c):
+    c.indent_print("Elements were changed in the arrangement view")
+    call_next_tag(c)
 
-def clip_slot_list(level_index, element, element_path, chunk, old_chunk):
-    if len(element.getchildren()) > len(old_chunk["xml"].getchildren()):
-        clip = element.iterchildren().next()
+def clip_slot_list(c):
+    if len(c.element.getchildren()) > len(c.old_chunk["xml"].getchildren()):
+        clip = c.element.iterchildren().next()
         clip_name = clip.iterchildren("Name").next().attrib['Value']
         # clip_name = get_name(clip)
-        print "A clip was added with the name : %s" % clip_name
+        c.indent_print("A clip was added with the name : %s" % clip_name)
         return
 
-    clip = old_chunk["xml"].iterchildren().next()
+    clip = c.old_chunk["xml"].iterchildren().next()
     clip_name = clip.iterchildren("Name").next().attrib['Value']
     # clip_name = get_name(clip)
-    print "A clip was removed with the name : %s" % clip_name
+    cd.indent_print("A clip was removed with the name : %s" % clip_name)
     return
 
 TRACK_NAMES = {}
@@ -51,11 +52,11 @@ def get_track_name(element, element_path, track_type):
     return TRACK_NAMES[track_element]
 
 def track(track_type, prefix):
-    def wrapper(level_index, element, element_path, chunk, old_chunk):
-        track_name = get_track_name(element, element_path, track_type)
-        print "In %s %s track called %s" % (prefix, track_type, track_name)
+    def wrapper(c):
+        track_name = get_track_name(c.element, c.element_path, track_type)
+        c.indent_print("In %s %s track called %s" % (prefix, track_type, track_name))
 
-        call_next_tag(level_index, element, element_path, chunk, old_chunk)
+        call_next_tag(c)
 
     return wrapper
 

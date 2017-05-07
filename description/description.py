@@ -2,6 +2,27 @@ from pprint import pprint
 
 from root_description import track, LEVEL_DESCRIPTION
 
+class Cursor(object):
+    """
+    level_index = current level in the element_path
+    element = targeted element in the existing project
+    element_path = split path of the element
+    chunk = chunk found in the new version
+    old_chunk = chunk found in the old version
+    """
+    def __init__(self, level_index, element, element_path, chunk, old_chunk):
+        super(Cursor, self).__init__()
+        self.level_index = level_index
+        self.element = element
+        self.element_path = element_path
+        self.chunk = chunk
+        self.old_chunk = old_chunk
+        self.indent = 0
+
+    def indent_print(self, toprint):
+        print "%s%s" % (self.indent * "\t", toprint)
+        self.indent += 1
+
 # TODO:
 # keep description in a list or dict for better display?
 
@@ -53,5 +74,5 @@ def describe_operation(chunks, elements):
                                    ,chunks[chunk["replacing"]])
 
                     if level_index is not None:
-                        LEVEL_DESCRIPTION[level](level_index, project_element, element_path_split, chunk, chunks[chunk["replacing"]])
+                        LEVEL_DESCRIPTION[level](cursor)
                         break
