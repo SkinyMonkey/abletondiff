@@ -1,78 +1,96 @@
 from pprint import pprint
 
-from root_description import track, LEVEL_DESCRIPTION
+from visit_state import VisitState
+from sub_description import events, audioclip, device
 
-class Cursor(object):
-    """
-    level_index = current level in the element_path
-    element = targeted element in the existing project
-    element_path = split path of the element
-    chunk = chunk found in the new version
-    old_chunk = chunk found in the old version
-    """
-    def __init__(self, level_index, element, element_path, chunk, old_chunk):
-        super(Cursor, self).__init__()
-        self.level_index = level_index
-        self.element = element
-        self.element_path = element_path
-        self.chunk = chunk
-        self.old_chunk = old_chunk
-        self.indent = 0
+def arranger(level_index, v):
+    v.display("In the arrangement view")
+    v.call_next_tag(level_index)
 
-    def indent_print(self, toprint):
-        print "%s%s" % (self.indent * "\t", toprint)
-        self.indent += 1
+def clip_slot_list(level_index, v):
+    v.display("In the live view")
+    if len(v.element.getchildren()) > len(v.old_chunk["xml"].getchildren()):
+        clip = v.element.iterchildren().next()
+        clip_name = v.get_attribute("Name", clip)
+        v.display("A clip named %s was added" % clip_name)
+        return
+
+    clip = v.old_chunk["xml"].iterchildren().next()
+    clip_name = v.get_attribute("Name", clip)
+    v.display("A clip named %s was removed" % clip_name)
+    return level_index
+
+
+def track(track_type, prefix):
+    TRACK_NAMES = {}
+
+    def get_track_name(element, element_path, track_type):
+        tag = "%sTrack" % track_type.capitalize()
+
+        track_element = element.iterancestors(tag).next()
+
+        if track_element not in TRACK_NAMES:
+            track_name = track_element.iterchildren("Name").next()
+            effective_name = track_name.iterchildren("EffectiveName").next()
+            TRACK_NAMES[track_element] = effective_name.attrib['Value']
+
+        return TRACK_NAMES[track_element]
+
+    def wrapper(level_index, v):
+        track_name = get_track_name(v.element, v.element_path, track_type)
+        v.display("In %s %s track called %s" % (prefix, track_type, track_name))
+
+        v.call_next_tag(level_index)
+
+    return wrapper
+
+LEVEL_DESCRIPTION = {
+# Main containers
+    "AudioTrack": track("audio", "an"),
+    "MidiTrack": track("midi", "a"),
+
+    "ClipSlotList": clip_slot_list,
+    "ArrangerAutomation": arranger,
+
+# Elements
+    "Events": events,
+    "AudioClip": audioclip,
+    "Devices": device,
+}
+
+def element_index(chunk):
+    """
+    index begins at 0 -> +1
+    xml declaration does not matter -> +1
+    not sure why -> +1
+    """
+    return chunk["begin_lineno"] - 3
 
 # TODO:
 # keep description in a list or dict for better display?
 
-def element_index(chunk):
-    """
-    index begins at 0 -> 1
-    xml declaration does not matter -> 1
-    """
-    return chunk["begin_lineno"] - 3
-
-# apply blacklisting sooner? would avoid useless treatments
-# Defines noisy/useless modification
-BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot"]
-
-def blacklisted(level):
-    for one in BLACK_LIST:
-        if level.find(one) != -1:
-            return True
-    return False
+def coherence_check(project_element, chunk):
+    if project_element.tag != chunk["xml"].tag:
+        print chunk["xml"].tag
+        print project_element.tag
+        raise Exception("Algorithm problem : element offset is not right")
 
 def describe_operation(chunks, elements):
     roottree = elements[0].getroottree()
     for chunk in chunks:
         if chunk["operation_type"] == "MODIFICATION"\
-            and chunk.get("replacing") is not None:
+           and chunk.get("replacing") is not None:
 
-            project_element = elements[element_index(chunk)]
-            element_path = roottree.getpath(project_element)
-            element_path_split = element_path.split('/')
-                    
-            if project_element.tag != chunk["xml"].tag:
-                print chunk["xml"].tag
-                print elements[element_index(chunk)].tag
-                raise Exception("Algorithm problem : element offset is not right")
+           current_state_element = elements[element_index(chunk)]
+           element_path = roottree.getpath(current_state_element)
+           element_path_split = element_path.split('/')[1:]
+           
+           coherence_check(current_state_element, chunk)
 
-            if not blacklisted(element_path_split[-1]):
-                print element_path
-
-                for level in LEVEL_DESCRIPTION:
-                    try:
-                        level_index = element_path_split.index(level)
-                    except:
-                        level_index = None
-
-                    cursor = Cursor(level_index
-                                   ,project_element
-                                   ,element_path_split
-                                   ,chunk
-                                   ,chunks[chunk["replacing"]])
-
-                    if level_index is not None:
-                        LEVEL_DESCRIPTION[level](cursor)
-                        break
+           v = VisitState(current_state_element\
+                         ,element_path_split\
+                         ,chunk\
+                         ,chunks[chunk["replacing"]]
+                         ,LEVEL_DESCRIPTION)
+ 
+           v.call_next_tag(0)

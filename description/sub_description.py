@@ -1,47 +1,40 @@
-from common import get_next_level, get_next_element, get_name, element_left, compute_change
-
-def call_next_tag(c):
-    c.level_index += 1
-    next_tag = get_next_level(c.level_index, c.element_path, SUB_LEVEL_DESCRIPTION)
-    
-    if next_tag is not None:
-        c.level_index = c.element_path.index(next_tag)
-        return SUB_LEVEL_DESCRIPTION[next_tag](c)
-
-    print element_path
-    print element_path[level_index]
-    raise Exception("Next tag could not be found")
-
-def audioclip(c):
+def audioclip(level_index, v):
     # FIXME : add begin and end
-    c.indent_print("An audioclip named %s" %\
-                   c.element.iterchildren("Name").next().attrib["Value"])
+    v.display("An audioclip named %s" % v.get_attribute("Name"))
+    v.display("Starting at %s, ending at %s" % (v.get_attribute("CurrentStart"), v.get_attribute("CurrentEnd")))
+    return level_index
 
-def events(c):
-#    import pdb; pdb.set_trace()
-
-    if len(c.element.getchildren()) > len(c.old_chunk["xml"].getchildren()):
-        c.indent_print("events were added")
-        if element_left(c.level_index, c.element_path):
-            call_next_tag(c)
+def events(level_index, v):
+    if len(v.element.getchildren()) > len(v.old_chunk["xml"].getchildren()):
+        v.display("events were added")
+        if v.element_left(level_index):
+            call_next_tag(level_index, v)
         else:
-            for child in c.element:
-                SUB_LEVEL_DESCRIPTION[child.tag](c)
+            for child in v.element:
+                v.element = child
+                v.call_level_map(level_index, child.tag)
+        return level_index
 
-    c.indent_print("events removed")
+    v.display("events removed")
+    return level_index
 
-def device(c):
-    device_name = get_next_element(c.element_path, "Devices")
+def device(level_index, v):
+    def parameter_change(device_name, v):
+        parameter_name = v.get_next_element(device_name)
+    
+        (from_, to) = v.compute_change()
+    
+        v.display("%s changed from %s to %s" %\
+            (parameter_name
+            ,from_
+            ,to))
 
-    c.indent_print("In a device called %s, %s changed %s" %\
-            (device_name
-            ,get_next_element(c.element_path, device_name)
-            ,compute_change(c.chunk, c.old_chunk)))
+    device_name = v.get_next_element("Devices")
+ 
+    v.display("In a device called %s" % device_name)
 
-    call_next_tag(c)
+    v.indent += 1
+    parameter_change(device_name, v)
+    v.indent -= 1
 
-SUB_LEVEL_DESCRIPTION = {
-    "Events": events,
-    "AudioClip": audioclip,
-    "Devices": device,
-}
+    # v.call_next_tag(level_index)

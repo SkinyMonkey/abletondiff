@@ -1,3 +1,3 @@
 pushd tests/test\ Project;
-git diff > /tmp/res
+git $@ > /tmp/res
 popd;

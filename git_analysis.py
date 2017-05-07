@@ -133,19 +133,27 @@ def bind_objects(patches):
 
     return operation_chunks
 
+BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar"]
+
+def whitelisted(chunk):
+    tag = chunk["xml"].tag
+    for one in BLACK_LIST:
+        if tag.find(one) != -1:
+            return False
+    return True
+
+def filter_blacklisted(chunks):
+    return filter(whitelisted, chunks)
+
 def print_chunk_tags(chunks):
     for chunk in chunks:
         if chunk["xml"] is not None:
             print chunk["xml"].tag
 
-def git_analysis(repository_name, elements):
+def git_analysis(repository_name, commita, commitb, elements):
     repo = Repository(repository_name)
-    commit1 = repo.get("b5726aea3b80a3b10982e7218ae893bd9d8f12bb")
-    commit2 = None # repo.get("af0a43abbad67ae6a0aafef386bca459faa8d118")
-    d = repo.diff(commit1, commit2)
+    d = repo.diff(commita, commitb)
 
-    # FIXME : how to reference and older commit?
-    
     patches = [p for p in d]
 
     if len(patches) == 0:
@@ -154,8 +162,9 @@ def git_analysis(repository_name, elements):
 
     chunks = bind_objects(patches)
     chunks = eval_operations(chunks)
+    chunks = filter_blacklisted(chunks)
     chunks = label_modifications(chunks)
 
-    # print_chunk_tags(chunks)
+#    print_chunk_tags(chunks)
     
     return chunks
