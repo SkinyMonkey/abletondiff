@@ -1,7 +1,7 @@
 import gzip
 from sys import argv
-from git_analysis import git_analysis
-from project_analysis import project_analysis
+from analysis.git import git_analysis
+from analysis.project import project_analysis
 
 from description.description import describe_operation
 
