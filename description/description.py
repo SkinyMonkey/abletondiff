@@ -81,13 +81,13 @@ def describe_operation(chunks, elements):
 
     roottree = elements[0].getroottree()
     for chunk in chunks:
+        current_state_element = elements[element_index(chunk)]
+        element_path = roottree.getpath(current_state_element)
+        element_path_split = element_path.split('/')[1:]
+
         if chunk["operation_type"] == "MODIFICATION"\
            and chunk.get("replacing") is not None:
 
-           current_state_element = elements[element_index(chunk)]
-           element_path = roottree.getpath(current_state_element)
-           element_path_split = element_path.split('/')[1:]
-           
            coherence_check(current_state_element, chunk)
 
            v = VisitState(current_state_element\
@@ -96,12 +96,7 @@ def describe_operation(chunks, elements):
                          ,chunks[chunk["replacing"]]
                          ,LEVEL_DESCRIPTION)
  
-           v.call_next_tag(0)
-
         elif chunk["operation_type"] == "ADDITION":
-           current_state_element = elements[element_index(chunk)]
-           element_path = roottree.getpath(current_state_element)
-           element_path_split = element_path.split('/')[1:]
 
            coherence_check(current_state_element, chunk)
 
@@ -111,6 +106,13 @@ def describe_operation(chunks, elements):
                          ,None
                          ,LEVEL_DESCRIPTION)
            
-           v.call_next_tag(0)
         elif chunk["operation_type"] == "SUPPRESSION":
-            print "HERE"
+           # no need for coherence check : the element was removed
+
+           v = VisitState(current_state_element\
+                         ,element_path_split\
+                         ,None\
+                         ,chunk
+                         ,LEVEL_DESCRIPTION)
+
+        v.call_next_tag(0)

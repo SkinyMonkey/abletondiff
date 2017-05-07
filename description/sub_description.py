@@ -8,6 +8,7 @@ def events(level_index, v):
     if v.old_chunk is None or\
         len(v.element.getchildren()) > len(v.old_chunk["xml"].getchildren()):
         v.display("events were added")
+
         if v.element_left(level_index):
             v.call_next_tag(level_index)
         else:
@@ -16,7 +17,9 @@ def events(level_index, v):
                 v.call_level_map(level_index, child.tag)
         return level_index
 
-    v.display("events removed")
+    v.display("events were removed")
+    v.element = v.old_chunk["xml"]
+    v.call_next_tag(level_index)
     return level_index
 
 def device(level_index, v):

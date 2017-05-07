@@ -165,6 +165,10 @@ def git_analysis(repository_name, commita, commitb, elements):
     chunks = filter_blacklisted(chunks)
     chunks = label_modifications(chunks)
 
+    if len(chunks) == 0:
+        print "No modification applied"
+        exit(-1)
+
 #    print_chunk_tags(chunks)
     
     return chunks
