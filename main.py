@@ -2,6 +2,8 @@ import gzip
 from git_analysis import git_analysis
 from project_analysis import project_analysis
 
+from description.description import describe_operation
+
 # TODO : rename
 def update_local_file(project_directory, project_name):
     """
@@ -26,7 +28,9 @@ def main():
 
     elements = project_analysis(project_content)
     
-    result = git_analysis(repository_name, elements)
+    chunks = git_analysis(repository_name, elements)
+    
+    describe_operation(chunks, elements)
 
 if __name__ == "__main__":
     main()

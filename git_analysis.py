@@ -4,8 +4,6 @@ from lxml import etree
 from pprint import pprint
 import re
 
-from description import describe_operation
-
 ADDITION = True
 SUPPRESSION = False
 
@@ -142,7 +140,7 @@ def print_chunk_tags(chunks):
 
 def git_analysis(repository_name, elements):
     repo = Repository(repository_name)
-    commit1 = None # repo.get("d1d2534d629163ec029100b135c9a813a862b9e0")
+    commit1 = repo.get("b5726aea3b80a3b10982e7218ae893bd9d8f12bb")
     commit2 = None # repo.get("af0a43abbad67ae6a0aafef386bca459faa8d118")
     d = repo.diff(commit1, commit2)
 
@@ -160,4 +158,4 @@ def git_analysis(repository_name, elements):
 
     # print_chunk_tags(chunks)
     
-    describe_operation(chunks, elements)
+    return chunks
