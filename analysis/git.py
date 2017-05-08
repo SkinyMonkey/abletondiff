@@ -52,7 +52,6 @@ def label_modifications(chunks, recursion = False):
         index += 1
     return chunks
 
-# print chunk["xml"].tag
 def eval_operations(chunks):
     res = []
     for chunk in chunks:

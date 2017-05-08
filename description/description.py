@@ -84,6 +84,7 @@ def describe_operation(chunks, elements):
         current_state_element = elements[element_index(chunk)]
         element_path = roottree.getpath(current_state_element)
         element_path_split = element_path.split('/')[1:]
+        v = None
 
         if chunk["operation_type"] == "MODIFICATION"\
            and chunk.get("replacing") is not None:
@@ -115,4 +116,5 @@ def describe_operation(chunks, elements):
                          ,chunk
                          ,LEVEL_DESCRIPTION)
 
-        v.call_next_tag(0)
+        if v is not None:
+            v.call_next_tag(0)
