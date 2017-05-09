@@ -81,7 +81,7 @@ class VisitState(object):
     
     def call_next_tag(self, level_index):
         """
-        Call the next level in the xpath that has a callback in $level_map
+        Call the next level in the xpath has a callback in $level_map
         """
         next_tag = self.get_next_level(level_index + 1)
     
@@ -95,3 +95,6 @@ class VisitState(object):
 
     def display(self, message):
         print "%s%s" % ("\t" * self.indent, message)
+
+    def current_tag(self, level_index):
+        return self.element_path[level_index]

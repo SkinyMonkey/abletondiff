@@ -132,7 +132,7 @@ def bind_objects(patches):
 
     return operation_chunks
 
-BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar"]
+BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar", "Highlighted", "NextColorIndex"]
 
 def whitelisted(chunk):
     tag = chunk["xml"].tag

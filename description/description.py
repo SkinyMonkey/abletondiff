@@ -1,7 +1,8 @@
 from pprint import pprint
 
 from visit_state import VisitState
-from sub_description import events, audioclip, device
+from sub_description import events, clip, device, keytracks
+from high_level_change import high_level_change
 
 def arranger(level_index, v):
     v.display("In the arrangement view")
@@ -14,17 +15,20 @@ def clip_slot_list(level_index, v):
         clip_name = v.get_attribute("Name", clip)
         v.display("A clip named %s was added" % clip_name)
         return
+    elif len(v.element.getchildren()) < len(v.old_chunk["xml"].getchildren()):
+        print v.old_chunk["xml"]
+        print v.element_path
+        print v.element_path[level_index:]
 
-    clip = v.old_chunk["xml"].iterchildren().next()
-    clip_name = v.get_attribute("Name", clip)
-    v.display("A clip named %s was removed" % clip_name)
+        clip = v.old_chunk["xml"].iterchildren().next()
+        clip_name = v.get_attribute("Name", clip)
+        v.display("A clip named %s was removed" % clip_name)
     return level_index
-
 
 def track(track_type, prefix):
     TRACK_NAMES = {}
 
-    def get_track_name(element, element_path, track_type):
+    def get_track_name(element, track_type):
         tag = "%sTrack" % track_type.capitalize()
 
         track_element = element.iterancestors(tag).next()
@@ -37,7 +41,7 @@ def track(track_type, prefix):
         return TRACK_NAMES[track_element]
 
     def wrapper(level_index, v):
-        track_name = get_track_name(v.element, v.element_path, track_type)
+        track_name = get_track_name(v.element, track_type)
         v.display("In %s %s track called %s" % (prefix, track_type, track_name))
 
         v.call_next_tag(level_index)
@@ -46,18 +50,30 @@ def track(track_type, prefix):
 
 LEVEL_DESCRIPTION = {
 # Main containers
-    "AudioTrack": track("audio", "an"),
-    "MidiTrack": track("midi", "a"),
-
+# display data about themselves
     "ClipSlotList": clip_slot_list,
     "ArrangerAutomation": arranger,
 
-# Elements
+    "AudioTrack": track("audio", "an"),
+    "MidiTrack": track("midi", "a"),
+
+# Intermediate containers
+# do not display, just call
     "Events": events,
-    "AudioClip": audioclip,
+
+# Elements
+    "AudioClip": clip("audio", "An"),
+    "MidiClip": clip("midi", "A"),
+
+# Leaves :
+# do not call next tag
     "Devices": device,
+    "KeyTracks": keytracks,
+
+    "EnvelopeModePreferred": lambda x, y: x
 }
 
+# FIXME : implement
 def element_index(chunk):
     """
     index begins at 0 -> +1
@@ -69,19 +85,36 @@ def element_index(chunk):
 # TODO:
 # keep description in a list or dict for better display?
 
-def coherence_check(project_element, chunk):
-    if project_element.tag != chunk["xml"].tag:
-        print chunk["xml"].tag
-        print project_element.tag
-        raise Exception("Algorithm problem : element offset is not right")
-
 def describe_operation(chunks, elements):
-    #import pdb; pdb.set_trace()
-    # FIXME : what to do if element was simply added?
+
+    def get_first_previous_tag(chunk, elements):
+        current_state_element = None
+        index = element_index(chunk)
+        while current_state_element is None:
+            current_state_element = elements[index]
+            index -= 1
+        return current_state_element
+    
+    
+    def coherence_check(project_element, chunk):
+        if project_element.tag != chunk["xml"].tag:
+            print chunk["xml"].tag
+            print project_element.tag
+            raise Exception("Algorithm problem : element offset is not right")
+
+#    import pdb; pdb.set_trace()
 
     roottree = elements[0].getroottree()
     for chunk in chunks:
+        if high_level_change(chunk):
+            continue
+
         current_state_element = elements[element_index(chunk)]
+
+        # We get back to the last valid element
+        if current_state_element is None:
+            current_state_element = get_first_previous_tag(chunk, elements)
+
         element_path = roottree.getpath(current_state_element)
         element_path_split = element_path.split('/')[1:]
         v = None

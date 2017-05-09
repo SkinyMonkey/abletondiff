@@ -1,23 +1,45 @@
-def audioclip(level_index, v):
-    # FIXME : add begin and end
-    v.display("An audioclip named %s" % v.get_attribute("Name"))
-    v.display("Starting at %s, ending at %s" % (v.get_attribute("CurrentStart"), v.get_attribute("CurrentEnd")))
-    return level_index
+# FIXME : finish
+def keytracks(level_index, v):
+    v.display("clip was changed")
+    if v.element_left(level_index):
+        v.call_next_tag(level_index)
+    else:
+        for keytrack in v.chunk["xml"]:
+            for note in keytrack:
+                print "note: %s" % note
+                print "children"
+                print note.getchildren()
+
+def clip(clip_type, prefix):
+    def wrapper(level_index, v):
+        if not v.element_left(level_index):
+            # FIXME : added? removed?
+            v.display("%s %s clip named '%s'" % (prefix, clip_type, v.get_attribute("Name")))
+            v.display("Starting at %s, ending at %s" % (v.get_attribute("CurrentStart")
+                                                       ,v.get_attribute("CurrentEnd")))
+        else:
+            clip_tag = clip_type.capitalize() + "Clip"
+            parent_clip = v.element.iterancestors(clip_tag).next()
+            v.display("In %s %s clip named '%s'" % (prefix.lower(), clip_type, v.get_attribute("Name", parent_clip)))
+            v.display("Starting at %s, ending at %s" % (v.get_attribute("CurrentStart", parent_clip)
+                                                       ,v.get_attribute("CurrentEnd", parent_clip)))
+            v.call_next_tag(level_index)
+        return level_index
+    return wrapper
 
 def events(level_index, v):
     if v.old_chunk is None or\
         len(v.element.getchildren()) > len(v.old_chunk["xml"].getchildren()):
-        v.display("events were added")
 
         if v.element_left(level_index):
             v.call_next_tag(level_index)
         else:
-            for child in v.element:
+            # we reached the element but there is more data inside to display
+            for child in v.element: # chunk["xml"]
                 v.element = child
                 v.call_level_map(level_index, child.tag)
         return level_index
 
-    v.display("events were removed")
     v.element = v.old_chunk["xml"]
     v.call_next_tag(level_index)
     return level_index
