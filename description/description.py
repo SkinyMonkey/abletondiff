@@ -48,6 +48,10 @@ def track(track_type, prefix):
 
     return wrapper
 
+def implement_me(level_index, v):
+    print "Implement me"
+    return level_index
+
 LEVEL_DESCRIPTION = {
 # Main containers
 # display data about themselves
@@ -70,7 +74,8 @@ LEVEL_DESCRIPTION = {
     "Devices": device,
     "KeyTracks": keytracks,
 
-    "EnvelopeModePreferred": lambda x, y: x
+    "EnvelopeModePreferred": implement_me,
+    "EffectiveName": implement_me,
 }
 
 # FIXME : implement

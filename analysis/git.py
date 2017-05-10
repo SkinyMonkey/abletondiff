@@ -132,7 +132,7 @@ def bind_objects(patches):
 
     return operation_chunks
 
-BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar", "Highlighted", "NextColorIndex"]
+BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar", "Highlighted", "NextColorIndex", "UserName"]
 
 def whitelisted(chunk):
     tag = chunk["xml"].tag
@@ -149,7 +149,7 @@ def print_chunk_tags(chunks):
         if chunk["xml"] is not None:
             print chunk["xml"].tag
 
-def git_analysis(repository_name, commita, commitb, elements):
+def git_analysis(repository_name, commita, commitb):
     repo = Repository(repository_name)
     d = repo.diff(commita, commitb)
 
