@@ -47,44 +47,53 @@ def main(commita = None, commitb = None):
     project_directory = repository_name + "/test Project/"
     project_name = "test"
     
-    stashed = False
-
     repository = get_repository(repository_name)
     previous_head = repository.head.name
     project_content = None
 
     try:
-        if repository_clean(repository) and commitb is None:
+        repository_is_clean = repository_clean(repository)
+
+        if repository_is_clean and commitb is None:
             print "Clean work directory"
+            print "Updating the versioned project"
             project_content = update_local_file(project_directory, project_name)
 
+        if commitb is None:
+        # if commita is None or commita is not None and commitb is None
+           if commita is not None:
+            print "git diff commita"
+           else:
+            print "git diff"
+           project_content = read_project(project_directory, project_name)
+
         if commitb is not None:
+            print "git diff %s %s" % (commita, commitb)
             # if there is two commit to compare and not a simple comparison
             # to the actual state
             # we need to stash
             # and checkout the project of the most recent commit
             print "Stashing and checking out"
-            stashed = stash(repository)
+            if not repository_is_clean:
+                stash(repository)
             checkout_commit_state(repository, commita, commitb)
 #            print repository.head_is_detached
-            project_content = read_project(project_directory, project_name)
-        elif project_content is None:
             project_content = read_project(project_directory, project_name)
 
         elements = project_analysis(project_content)
 
         chunks = git_analysis(repository_name, commita, commitb)
 
-        print chunks[1]['begin_lineno']
-        print elements[chunks[1]['begin_lineno']]
-        exit(-1)
+#        print chunks[1]['begin_lineno']
+#        print elements[chunks[1]['begin_lineno']]
+#        exit(-1)
 
         describe_operation(chunks, elements)
 
 #    except Exception as e:
 #        print "Global error: %s"  % e
     finally:
-       restore_state(repository, stashed, previous_head)
+       restore_state(repository, repository_is_clean, previous_head)
 #       print repository.head_is_detached
        pass
 

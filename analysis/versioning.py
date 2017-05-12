@@ -133,7 +133,8 @@ def bind_objects(patches):
 
     return operation_chunks
 
-BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar", "Highlighted", "NextColorIndex", "UserName"]
+# FIXME : move to a file, growing to much
+BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar", "Highlighted", "NextColorIndex", "UserName"] #, "EnvelopeModePreferred", "Target", "UpperDisplayString", "LowerDisplayString",]
 
 def whitelisted(chunk):
     tag = chunk["xml"].tag
@@ -176,10 +177,8 @@ def git_analysis(repository_name, commita, commitb):
 #FIXME : DEBUG
 CURRENT_HEAD = Oid(hex='385898f83750ac84f6e2989c42752f1a4e8927c5')
 #def checkout_commit_state(repository, commita, commitb):
-#    stashed = False
 #    try:
 #        repository.stash(repository.default_signature)
-#        stashed = True
 #    except Exception as e:
 #        print "Nothing to stash"
 ##        print e
@@ -202,8 +201,6 @@ CURRENT_HEAD = Oid(hex='385898f83750ac84f6e2989c42752f1a4e8927c5')
 #    else:
 #        pass
 ##        repository.checkout(commitaref)
-#
-#    return stashed
 
 # FIXME : reimplement without using git-python
 from git import Repo
@@ -211,26 +208,20 @@ from git import Repo
 def stash(repository):
     git = Repo(repository.path).git
 
-    stashed = False
     try:
         git.stash()
-        stashed = True
         print "Modifications stashed"
     except Exception as e:
         print "Nothing to stash"
 
-    return stashed
-
 def checkout_commit_state(repository, commita, commitb):
     git = Repo(repository.path).git
-
-    # FIXME : swap commita and commitb by date
-    #         it should make more sense
 
     commitaref = repository.revparse_single(commita)
 
     if commitb is not None:
         commitbref = repository.revparse_single(commitb)
+
         if max(commitaref.author.time, commitbref.author.time)\
             == commitaref.author.time:
             git.checkout(commita)
@@ -239,24 +230,24 @@ def checkout_commit_state(repository, commita, commitb):
     else:
         git.checkout(commita)
 
-#def restore_state(repository, stashed, previous_head):
-#    if stashed == True:
-#        repository.stash_pop()
-#
+#def restore_state(repository, repository_is_clean, previous_head):
 #    if repository.head.target != previous_head:
 #        repository.head.set_target(previous_head)
+#
+#    if repository_is_clean == False:
+#        repository.stash_pop()
  
 
-def restore_state(repository, stashed, previous_head):
+def restore_state(repository, repository_is_clean, previous_head):
     git = Repo(repository.path).git
         
     if repository.head.name != previous_head:
         # print "WORKED : %s" % previous_head.split('/')[-1]
         git.checkout(previous_head.split('/')[-1])
     
-    if stashed == True:
-        repository.stash_pop()
-
+    if repository_is_clean == False:
+        # repository.stash_pop()
+        git.stash('pop')
 
 def get_repository(repository_name):
     return Repository(repository_name)

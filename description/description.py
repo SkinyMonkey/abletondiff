@@ -79,10 +79,6 @@ LEVEL_DESCRIPTION = {
     "Devices": device,
     "KeyTracks": keytracks,
 
-    "EnvelopeModePreferred": implement_me,
-    "Target": implement_me,
-    "UpperDisplayString": implement_me,
-    "LowerDisplayString": implement_me,
     "EffectiveName": effective_name,
 }
 
