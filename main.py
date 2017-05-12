@@ -51,6 +51,7 @@ def main(commita = None, commitb = None):
     previous_head = repository.head.name
     project_content = None
 
+    # FIXME : move this to a function?
     try:
         repository_is_clean = repository_clean(repository)
 
@@ -83,10 +84,6 @@ def main(commita = None, commitb = None):
         elements = project_analysis(project_content)
 
         chunks = git_analysis(repository_name, commita, commitb)
-
-#        print chunks[1]['begin_lineno']
-#        print elements[chunks[1]['begin_lineno']]
-#        exit(-1)
 
         describe_operation(chunks, elements)
 

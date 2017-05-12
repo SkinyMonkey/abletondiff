@@ -53,6 +53,62 @@ def label_modifications(chunks, recursion = False):
         index += 1
     return chunks
 
+# FIXME : should be more flexible than this hardcoded smelly code
+def is_beginning_tag(content):
+    clean_content = content.strip()
+    if clean_content[0] == '<'\
+     and clean_content[-1] == '>'\
+     and clean_content[-2] != '/':
+        return True
+    return False
+
+def get_tag(content):
+    return content.strip()[1:-1].split(' ')[0]
+
+# FIXME : put this higher in the execution?
+def find_chunks(chunk):
+    """
+    If multiple adjacent chunks are added,
+    they will be considered as one and xml will be rejected.
+    This functions cut the chunk into multiple coherent ones
+    """
+#    import pdb; pdb.set_trace()
+    count = 0
+    line_number = len(chunk["lines"])
+    res = []
+
+    # repeat
+    while count + 1 < line_number: # FIXME : could fail?
+        # 1 - find the first line tag
+        chunk_beginning = count
+        if (is_beginning_tag(chunk["lines"][count].content)):
+            open_tag = get_tag(chunk["lines"][count].content)
+            close_tag = get_tag(chunk["lines"][count + 1].content)
+
+            # 2 - find the end of it
+            while close_tag != open_tag and count + 1 < line_number:
+                close_tag = get_tag(chunk["lines"][count + 1].content)[1:]
+                count += 1
+            count += 1 # the end tag
+
+            assert open_tag == close_tag,\
+                    "End tag for %s could not be found" % open_tag
+
+            operation = ADDITION if chunk["operation_type"] == "ADDITION"\
+                                 else SUPPRESSION
+
+            new_chunk = create_chunk(chunk["lines"][chunk_beginning:count], operation)
+            chunk_content = get_chunk_content(new_chunk)
+            new_chunk["xml"] = etree.fromstring(chunk_content)
+            res.append(new_chunk)
+        else:
+            #print get_tag(chunk["lines"][count].content)
+            count += 1
+
+    assert count == line_number, "find_chunks could not consume every chunk line"
+
+    return res
+
 def eval_operations(chunks):
     res = []
     for chunk in chunks:
@@ -61,14 +117,19 @@ def eval_operations(chunks):
             chunk["xml"] = etree.fromstring(chunk_content)
             res.append(chunk)
         except Exception as e:
-            # use the lines instead of the all chunk
-            for line in chunk["lines"]:
-                try:
-                    new_chunk = create_chunk([line], ADDITION if chunk["operation_type"]  == "ADDITION" else SUPPRESSION)
-                    new_chunk["xml"] = etree.fromstring(line.content)
-                    res.append(new_chunk)
-                except Exception as e:
-                    pass
+            if is_beginning_tag(chunk["lines"][0].content):
+                res.extend(find_chunks(chunk))
+            else:
+                # use the lines instead of the all chunk
+                for line in chunk["lines"]:
+                    try:
+                        operation = ADDITION if chunk["operation_type"] == "ADDITION"\
+                                             else SUPPRESSION
+                        new_chunk = create_chunk([line], operation)
+                        new_chunk["xml"] = etree.fromstring(line.content)
+                        res.append(new_chunk)
+                    except Exception as e:
+                        pass
     return res
 
 
