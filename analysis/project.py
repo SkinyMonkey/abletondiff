@@ -3,7 +3,7 @@ from lxml import etree
 
 from pprint import pprint
 
-# FIXME : faults by one
+# FIXME : faults by one?
 def element_list(tree):
     """
     Creates a list with each element and line number as index.
@@ -28,9 +28,12 @@ def element_list(tree):
     return l
 
 
-def project_analysis(file_content):
-    project = etree.fromstring(file_content)
+def project_analysis(project_content):
+    project = etree.fromstring(project_content)
 
-    elements = [project] + element_list(project) + [None]
-   
+    elements = [None, project] + element_list(project) + [None]
+
+    if len(elements) != len(project_content.split('\n')[:-1]):
+        raise Exception("Parsed number of element does not match the number of lines in the project")
+
     return elements

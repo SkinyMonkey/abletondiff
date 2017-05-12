@@ -48,6 +48,11 @@ def track(track_type, prefix):
 
     return wrapper
 
+def effective_name(level_index, v):
+    v.display("name changed from %s to %s " %\
+        (v.old_chunk["xml"].attrib['Value'], v.element.attrib['Value']))
+    return level_index
+
 def implement_me(level_index, v):
     print "Implement me"
     return level_index
@@ -75,17 +80,19 @@ LEVEL_DESCRIPTION = {
     "KeyTracks": keytracks,
 
     "EnvelopeModePreferred": implement_me,
-    "EffectiveName": implement_me,
+    "Target": implement_me,
+    "UpperDisplayString": implement_me,
+    "LowerDisplayString": implement_me,
+    "EffectiveName": effective_name,
 }
 
 # FIXME : implement
 def element_index(chunk):
     """
     index begins at 0 -> +1
-    xml declaration does not matter -> +1
     not sure why -> +1
     """
-    return chunk["begin_lineno"] - 3
+    return chunk["begin_lineno"] - 2
 
 # TODO:
 # keep description in a list or dict for better display?
@@ -107,9 +114,7 @@ def describe_operation(chunks, elements):
             print project_element.tag
             raise Exception("Algorithm problem : element offset is not right")
 
-#    import pdb; pdb.set_trace()
-
-    roottree = elements[0].getroottree()
+    roottree = elements[1].getroottree()
     for chunk in chunks:
         if high_level_change(chunk):
             continue

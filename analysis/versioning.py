@@ -1,4 +1,5 @@
-from pygit2 import Repository
+from pygit2 import Repository, Oid
+from pygit2 import GIT_STATUS_CURRENT
 
 from lxml import etree
 from pprint import pprint
@@ -171,3 +172,102 @@ def git_analysis(repository_name, commita, commitb):
 #    print_chunk_tags(chunks)
     
     return chunks
+
+#FIXME : DEBUG
+CURRENT_HEAD = Oid(hex='385898f83750ac84f6e2989c42752f1a4e8927c5')
+#def checkout_commit_state(repository, commita, commitb):
+#    stashed = False
+#    try:
+#        repository.stash(repository.default_signature)
+#        stashed = True
+#    except Exception as e:
+#        print "Nothing to stash"
+##        print e
+#
+#    commitaref = repository.revparse_single(commita)
+#
+#    if commitb is not None:
+#        commitbref = repository.revparse_single(commitb)
+#
+#        if max(commitaref.author.time, commitbref.author.time)\
+#            == commitaref.author.time:
+##            repository.head.set_target(Oid(hex=commitaref.hex))
+#            pass
+#        else:
+#            pass
+##            repository.head.set_target(Oid(hex=commitbref.hex))
+##            repository.checkout_tree(commitbref)
+##            from subprocess import call
+##           repository.head.set_target(CURRENT_HEAD)
+#    else:
+#        pass
+##        repository.checkout(commitaref)
+#
+#    return stashed
+
+# FIXME : reimplement without using git-python
+from git import Repo
+
+def stash(repository):
+    git = Repo(repository.path).git
+
+    stashed = False
+    try:
+        git.stash()
+        stashed = True
+        print "Modifications stashed"
+    except Exception as e:
+        print "Nothing to stash"
+
+    return stashed
+
+def checkout_commit_state(repository, commita, commitb):
+    git = Repo(repository.path).git
+
+    # FIXME : swap commita and commitb by date
+    #         it should make more sense
+
+    commitaref = repository.revparse_single(commita)
+
+    if commitb is not None:
+        commitbref = repository.revparse_single(commitb)
+        if max(commitaref.author.time, commitbref.author.time)\
+            == commitaref.author.time:
+            git.checkout(commita)
+        else:
+            git.checkout(commitb)
+    else:
+        git.checkout(commita)
+
+#def restore_state(repository, stashed, previous_head):
+#    if stashed == True:
+#        repository.stash_pop()
+#
+#    if repository.head.target != previous_head:
+#        repository.head.set_target(previous_head)
+ 
+
+def restore_state(repository, stashed, previous_head):
+    git = Repo(repository.path).git
+        
+    if repository.head.name != previous_head:
+        # print "WORKED : %s" % previous_head.split('/')[-1]
+        git.checkout(previous_head.split('/')[-1])
+    
+    if stashed == True:
+        repository.stash_pop()
+
+
+def get_repository(repository_name):
+    return Repository(repository_name)
+
+GIT_STATUS_WT_MODIFIED = 256
+GIT_STATUS_INDEX_MODIFIED = 2
+
+def repository_clean(repository):
+    status = repository.status()
+    for filepath, flags in status.items():
+        if flags & GIT_STATUS_WT_MODIFIED\
+            or flags & GIT_STATUS_INDEX_MODIFIED:
+            return False
+    return True
