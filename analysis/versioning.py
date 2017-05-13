@@ -41,8 +41,6 @@ def label_modifications(chunks, recursion = False):
             if  chunks[subindex]["xml"] is not None \
             and chunks[index]["xml"] is not None \
             and chunks[subindex]["xml"].tag == chunks[index]["xml"].tag\
-            and chunks[index]["operation_type"] != "MODIFICATION"\
-            and chunks[subindex]["operation_type"] != "MODIFICATION"\
             and \
                 ((chunks[index]["operation_type"] == "ADDITION"\
             and chunks[subindex]["operation_type"] == "SUPPRESSION")
