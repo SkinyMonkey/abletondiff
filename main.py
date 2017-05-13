@@ -26,6 +26,18 @@ def update_local_file(project_directory, project_name):
             f.write(project_content)
         return project_content
 
+def update_project_file(project_directory, project_name):
+    """
+    Compress the current state of the local file into the .als file.
+    """
+    project_path = project_directory + project_name + ".als"
+    with open(project_directory + project_name, 'rb') as f:
+        project_content = f.read()
+
+        with open(project_path, 'w+') as project:
+            project.write(project_content)
+
+
 # FIXME : add option --checkout :
 #             get back to an anterior version
 #             checkout a version, commit etc
@@ -42,6 +54,29 @@ def update_local_file(project_directory, project_name):
 #
 #         add project folder as an option
 
+def restore(commita):
+    repository_name = "./tests"
+    project_directory = repository_name + "/test Project/"
+    project_name = "test"
+
+    repository = get_repository(repository_name)
+    previous_head = repository.head.name
+
+    try:
+        repository_is_clean = repository_clean(repository)
+        if not repository_is_clean:
+            stashed = stash(repository)
+
+        if commita is not None:
+            checkout_commit_state(repository, commita)
+        else:
+            checkout_commit_state(repository)
+
+        update_project_file(project_directory, project_name)
+    finally:
+       restore_state(repository, stashed, previous_head)
+
+
 def main(commita = None, commitb = None):
     repository_name = "./tests"
     project_directory = repository_name + "/test Project/"
@@ -50,6 +85,8 @@ def main(commita = None, commitb = None):
     repository = get_repository(repository_name)
     previous_head = repository.head.name
     project_content = None
+
+    stashed = False
 
     # FIXME : move this to a function?
     try:
@@ -76,7 +113,7 @@ def main(commita = None, commitb = None):
             # and checkout the project of the most recent commit
             print "Stashing and checking out"
             if not repository_is_clean:
-                stash(repository)
+                stashed = stash(repository)
             checkout_commit_state(repository, commita, commitb)
 #            print repository.head_is_detached
             project_content = read_project(project_directory, project_name)
@@ -90,7 +127,7 @@ def main(commita = None, commitb = None):
 #    except Exception as e:
 #        print "Global error: %s"  % e
     finally:
-       restore_state(repository, repository_is_clean, previous_head)
+       restore_state(repository, stashed, previous_head)
 #       print repository.head_is_detached
        pass
 

@@ -32,6 +32,7 @@ def label_modifications(chunks, recursion = False):
     """
     Rename a chunk operation to MODIFICATION if needed
     """
+
     index = 0
     while index < len(chunks):
         subindex = index + 1
@@ -41,7 +42,13 @@ def label_modifications(chunks, recursion = False):
             and chunks[index]["xml"] is not None \
             and chunks[subindex]["xml"].tag == chunks[index]["xml"].tag\
             and chunks[index]["operation_type"] != "MODIFICATION"\
-            and chunks[subindex]["operation_type"] != "MODIFICATION":
+            and chunks[subindex]["operation_type"] != "MODIFICATION"\
+            and \
+                ((chunks[index]["operation_type"] == "ADDITION"\
+            and chunks[subindex]["operation_type"] == "SUPPRESSION")
+            or
+                (chunks[index]["operation_type"] == "SUPPRESSION"\
+            and chunks[subindex]["operation_type"] == "ADDITION")):
 
                  chunks[index]["replaced_by"] = subindex
                  chunks[subindex]["replacing"] = index
@@ -65,6 +72,8 @@ def is_beginning_tag(content):
 def get_tag(content):
     return content.strip()[1:-1].split(' ')[0]
 
+HIGH_LEVEL_TAGS = ["MidiTrack", "AudioTrack"]
+
 # FIXME : put this higher in the execution?
 def find_chunks(chunk):
     """
@@ -77,8 +86,14 @@ def find_chunks(chunk):
     line_number = len(chunk["lines"])
     res = []
 
-    # repeat
-    while count + 1 < line_number: # FIXME : could fail?
+    #while count + 1 < line_number:
+    #    open_tag = get_tag(chunk["lines"][count].content)
+    #    print open_tag
+    #    while open_tag not in HIGH_LEVEL_TAGS:
+    #        open_tag = get_tag(chunk["lines"][count].content)
+    #        count += 1
+
+    while count + 1 < line_number:
         # 1 - find the first line tag
         chunk_beginning = count
         if (is_beginning_tag(chunk["lines"][count].content)):
@@ -118,7 +133,22 @@ def eval_operations(chunks):
             res.append(chunk)
         except Exception as e:
             if is_beginning_tag(chunk["lines"][0].content):
-                res.extend(find_chunks(chunk))
+                # FIXME : Looking in HIGH_LEVEL_TAGS makes the algorithm very context
+                #         dependent
+                #         but so is BLACKLIST and it could be a parameter
+                if get_tag(chunk["lines"][0].content) in HIGH_LEVEL_TAGS\
+                    and len(chunk["lines"]) > 1:
+                    res.extend(find_chunks(chunk))
+                else:
+                    pass
+                    # TODO : in the chunk, look for the last closing tag that has no match
+                    #        begin treatment after
+                    #        or for each closing tag that has no match, add an opening tag
+                    #        to be able to parse the xml, even if incomplete
+                    #        and be able to describe what changed?
+
+                    # print "FIND NEXT : %s" % get_tag(chunk["lines"][0].content)
+                    # print len(chunk["lines"])
             else:
                 # use the lines instead of the all chunk
                 for line in chunk["lines"]:
@@ -195,7 +225,7 @@ def bind_objects(patches):
     return operation_chunks
 
 # FIXME : move to a file, growing to much
-BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar", "Highlighted", "NextColorIndex", "UserName"] #, "EnvelopeModePreferred", "Target", "UpperDisplayString", "LowerDisplayString",]
+BLACK_LIST = ["Selected", "FloatEvent", "CurrentTime", "SavedPlayingSlot", "AnchorTime", "OtherTime", "CurrentZoom", "ScrollerPos", "ClientSize", "ChooserBar", "Highlighted", "NextColorIndex", "UserName", "Color"] #, "EnvelopeModePreferred", "Target", "UpperDisplayString", "LowerDisplayString",]
 
 def whitelisted(chunk):
     tag = chunk["xml"].tag
@@ -236,7 +266,7 @@ def git_analysis(repository_name, commita, commitb):
     return chunks
 
 #FIXME : DEBUG
-CURRENT_HEAD = Oid(hex='385898f83750ac84f6e2989c42752f1a4e8927c5')
+#CURRENT_HEAD = Oid(hex='385898f83750ac84f6e2989c42752f1a4e8927c5')
 #def checkout_commit_state(repository, commita, commitb):
 #    try:
 #        repository.stash(repository.default_signature)
@@ -274,8 +304,11 @@ def stash(repository):
         print "Modifications stashed"
     except Exception as e:
         print "Nothing to stash"
+        return False
 
-def checkout_commit_state(repository, commita, commitb):
+    return True
+
+def checkout_commit_state(repository, commita = None, commitb = None):
     git = Repo(repository.path).git
 
     commitaref = repository.revparse_single(commita)
@@ -299,14 +332,14 @@ def checkout_commit_state(repository, commita, commitb):
 #        repository.stash_pop()
  
 
-def restore_state(repository, repository_is_clean, previous_head):
+def restore_state(repository, stashed, previous_head):
     git = Repo(repository.path).git
         
     if repository.head.name != previous_head:
         # print "WORKED : %s" % previous_head.split('/')[-1]
         git.checkout(previous_head.split('/')[-1])
     
-    if repository_is_clean == False:
+    if stashed == True:
         # repository.stash_pop()
         git.stash('pop')
 
@@ -321,5 +354,7 @@ def repository_clean(repository):
     for filepath, flags in status.items():
         if flags & GIT_STATUS_WT_MODIFIED\
             or flags & GIT_STATUS_INDEX_MODIFIED:
+            print "NOT a clean work directory"
             return False
+    print "Clean work directory"
     return True
