@@ -34,7 +34,7 @@ def update_project_file(project_directory, project_name):
     with open(project_directory + project_name, 'rb') as f:
         project_content = f.read()
 
-        with open(project_path, 'w+') as project:
+        with gzip.open(project_path, 'w+') as project:
             project.write(project_content)
 
 
@@ -54,13 +54,15 @@ def update_project_file(project_directory, project_name):
 #
 #         add project folder as an option
 
-def restore(commita):
+def restore(commita = None):
     repository_name = "./tests"
     project_directory = repository_name + "/test Project/"
     project_name = "test"
 
     repository = get_repository(repository_name)
     previous_head = repository.head.name
+    
+    stashed = False
 
     try:
         repository_is_clean = repository_clean(repository)
@@ -69,10 +71,10 @@ def restore(commita):
 
         if commita is not None:
             checkout_commit_state(repository, commita)
-        else:
-            checkout_commit_state(repository)
 
         update_project_file(project_directory, project_name)
+    except Exception as e:
+        print "Checkout error: %s" % e
     finally:
        restore_state(repository, stashed, previous_head)
 
@@ -93,7 +95,6 @@ def main(commita = None, commitb = None):
         repository_is_clean = repository_clean(repository)
 
         if repository_is_clean and commitb is None:
-            print "Clean work directory"
             print "Updating the versioned project"
             project_content = update_local_file(project_directory, project_name)
 
@@ -124,14 +125,18 @@ def main(commita = None, commitb = None):
 
         describe_operation(chunks, elements)
 
-#    except Exception as e:
-#        print "Global error: %s"  % e
+    except Exception as e:
+        print "Error: %s"  % e
+        print e.args
     finally:
        restore_state(repository, stashed, previous_head)
 #       print repository.head_is_detached
        pass
 
 if __name__ == "__main__":
+
+# FIXME : add --checkout option
+#    main = restore
 
     if len(argv) == 3:
         main(argv[1], argv[2])
