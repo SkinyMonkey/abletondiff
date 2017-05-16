@@ -65,6 +65,7 @@ LEVEL_DESCRIPTION = {
 
     "AudioTrack": track("audio", "an"),
     "MidiTrack": track("midi", "a"),
+    "ReturnTrack": track("return", "a"),
 
 # Intermediate containers
 # do not display, just call

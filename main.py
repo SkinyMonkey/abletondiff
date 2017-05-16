@@ -125,9 +125,8 @@ def main(commita = None, commitb = None):
 
         describe_operation(chunks, elements)
 
-    except Exception as e:
-        print "Error: %s"  % e
-        print e.args
+#    except Exception as e:
+#        print "Error: %s"  % e
     finally:
        restore_state(repository, stashed, previous_head)
 #       print repository.head_is_detached
