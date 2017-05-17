@@ -19,10 +19,10 @@ VALUE_TRANSLATE = {
 }
 
 def get_child(element, name):
-    try:
-        return element.iterchildren(name).next()
-    except:
-        return element.tag
+#    try:
+        return element.iterdescendants(name).next()
+#    except:
+#        return element.tag
 
 def get_child_named(name):
     def wrapper(element):
@@ -44,6 +44,19 @@ def get_name(element):
 def get_id(element):
     return get_attribute(element, "Id")
 
+def get_time(element):
+    return get_attribute(element, "Time")
+
+IDS = {}
+
+def generate_id(key):
+    def wrapper(element):
+        if not IDS.get(key):
+            IDS[key] = 0
+        IDS[key] += 1
+        return IDS[key]
+    return wrapper
+
 def diff_index(first, second):
     second = set(second)
     index = 0
@@ -58,7 +71,7 @@ def diff_description(diff, names, action, prefix = ""):
     for index in diff:
         print "%s%s was added" % (prefix, names[index])
 
-def diff_events(before_root, after_root, parent):
+def diff_events(before_root, after_root, parent, parent_index, type_index):
     for param_events in parent.iterdescendants("Events"):
         for param_event in param_events:
             param_event_path = after_root.getpath(param_event)
@@ -69,23 +82,23 @@ def diff_events(before_root, after_root, parent):
                 before_value = get_value(before_event[0])
                 if before_value != after_value:
                     print "\t\t%s's %s changed from %s to %s" %\
-                        (param_event_path.split('/')[-5]
-                        ,param_event_path.split('/')[-4]
+                        (param_event_path.split('/')[parent_index]
+                        ,param_event_path.split('/')[type_index]
                         ,before_value
                         ,after_value)
             else:
                 # FIXME: get device name or default to path name
                 # add value, add time
                 print "\t\t%s's %s event was added in automation" %\
-                        (param_event_path.split('/')[-5]
-                        ,param_event_path.split('/')[-4])
+                        (param_event_path.split('/')[parent_index]
+                        ,param_event_path.split('/')[type_index])
 
-def diff(before, after, name_cb):
+def diff(before, after, name_cb, before_id_cb = get_id, after_id_cb = get_id):
     before_names = map(name_cb, before)
     after_names = map(name_cb, after)
     
-    before_ids = map(get_id, before)
-    after_ids = map(get_id, after)
+    before_ids = map(before_id_cb, before)
+    after_ids = map(after_id_cb, after)
 
     id_diff = diff_index(before_ids, after_ids)
 
@@ -103,7 +116,7 @@ def diff(before, after, name_cb):
 def diff_mixer(before_root, after_root, track):
     track_mixer = track.iterdescendants("Mixer").next()
 
-    diff_events(before_root, after_root, track_mixer)
+    diff_events(before_root, after_root, track_mixer, -5, -4)
 
 # FIXME : use ids to be sure we are getting data from the same right devices
 #         in after and before
@@ -125,7 +138,7 @@ def diff_devices(before_root, after_root, track_before, track_after):
             if device.tag == "AuPluginDevice":
                 continue
 
-            diff_events(before_root, after_root, device)
+            diff_events(before_root, after_root, device, -5, -4)
 
 def diff_slots():
     pass
@@ -158,6 +171,7 @@ def browse(before, after):
             # check slots
 	    # can't use diff : no Id
 	    # use xpath to check?
+            # or use index in clipslotlist
             # before_slots = track_before.iterdescendants("ClipSlot")
             # after_slots = track_after.iterdescendants("ClipSlot")
 	    # iterdescendants("Name") -> if created there is a name, even empty
@@ -165,6 +179,28 @@ def browse(before, after):
             # check clips in arrangement view
 	    # "ClipTimeable"
 	    # "Events"
+
+            # get cliptimeable
+            # get all events
+
+            try:
+                cliptimeable_before = get_child(track_before, "ClipTimeable")
+                cliptimeable_after = get_child(track_after, "ClipTimeable")
+
+                before_argmnts = list(cliptimeable_before.iterdescendants("ArrangerAutomation"))
+                after_argmnts = list(cliptimeable_after.iterdescendants("ArrangerAutomation"))
+
+#                import pdb; pdb.set_trace()
+                (dargmnts_before, dargmnts_after, after_argmnt_names) =\
+                     diff(before_argmnts, after_argmnts, get_child_named("Name"), generate_id('b'), generate_id('a'))
+
+                for id_, argmnt in dargmnts_after.iteritems():
+                    if dargmnts_before.get(id_) is not None:
+                        diff_events(before_root, after_root, argmnt, -4, -1)
+
+            except Exception as e:
+#                print e
+                pass
 
 def main():
     with open('./tests/test Project/test') as current_state:
