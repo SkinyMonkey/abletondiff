@@ -1,5 +1,5 @@
 from lxml import etree
-import xtdiff
+from functools import partial
 
 def db(value):
     return value
@@ -27,7 +27,7 @@ def get_child(element, name):
 def get_child_named(name):
     def wrapper(element):
         try:
-            return get_child(element, name)
+            return get_value(get_child(element, name))
         except:
             return element.tag
     return wrapper
@@ -93,10 +93,14 @@ def diff_events(before_root, after_root, parent, parent_index, type_index):
                         (param_event_path.split('/')[parent_index]
                         ,param_event_path.split('/')[type_index])
 
+# TODO  make helpers on top of this to clean this?
+#       add prefix in helper generator
+#       add message to display to contextualize action
+#       add details about what was added or removed (AudioClip, MidiClip etc)
 def diff(before, after, name_cb, before_id_cb = get_id, after_id_cb = get_id):
     before_names = map(name_cb, before)
     after_names = map(name_cb, after)
-    
+
     before_ids = map(before_id_cb, before)
     after_ids = map(after_id_cb, after)
 
@@ -122,11 +126,11 @@ def diff_mixer(before_root, after_root, track):
 #         in after and before
 #	  when doing diff of params
 def diff_devices(before_root, after_root, track_before, track_after):
-    getchildren = lambda d: d.getchildren()
-    concat = lambda a, b : a + b
+    getchildren = partial(map, lambda d: d.getchildren())
+    concat = partial(reduce, lambda a, b : a + b)
 
-    before_devices = reduce(concat, map(getchildren, track_before.iterdescendants("Devices")))
-    after_devices = reduce(concat, map(getchildren, track_after.iterdescendants("Devices")))
+    before_devices = concat(getchildren(track_before.iterdescendants("Devices")))
+    after_devices = concat(getchildren(track_after.iterdescendants("Devices")))
 
     (ddevices_before, ddevices_after, after_device_names) =\
          diff(before_devices, after_devices, get_child_named("Name"))
@@ -140,8 +144,49 @@ def diff_devices(before_root, after_root, track_before, track_after):
 
             diff_events(before_root, after_root, device, -5, -4)
 
-def diff_slots():
-    pass
+def compose(*functions):
+    return reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
+
+def diff_slots(before_root, after_root, track_before, track_after):
+    has_clip = partial(filter, lambda x : len(x.getchildren()) > 0)
+    getchildren = partial(map, lambda x : x.getchildren())
+    concat = partial(reduce, lambda a, b : a + b)
+
+    clipslots_before = concat(getchildren(has_clip(list(get_child(track_before, "ClipSlotList").iterdescendants("Value")))), [])
+    clipslots_after = concat(getchildren(has_clip(list(get_child(track_after, "ClipSlotList").iterdescendants("Value")))), [])
+
+    print "In the Live view"
+
+    (dclipslots_before, dclipslots_after, after_clipslots_names) =\
+        diff(clipslots_before, clipslots_after, get_child_named("Name"), get_time, get_time)
+
+    for time, clipslot in dclipslots_after.iteritems():
+        if dclipslots_before.get(time) is not None:
+            pass
+            # diff_events(before_root, after_root, device, -5, -4)
+
+def diff_arrangement(before_root, after_root, track_before, track_after):
+    try:
+        cliptimeable_before = get_child(track_before, "ClipTimeable")
+        cliptimeable_after = get_child(track_after, "ClipTimeable")
+
+        getchildren = partial(map, lambda d: d.getchildren())
+        concat = lambda a, b : a + b
+
+        after_argmnts = reduce(concat, getchildren(cliptimeable_after.iterdescendants("Events")))
+        before_argmnts = reduce(concat, getchildren(cliptimeable_before.iterdescendants("Events")))
+
+        print "In the Arrangement view"
+
+        (dargmnts_before, dargmnts_after, after_argmnt_names) =\
+             diff(before_argmnts, after_argmnts, get_child_named("Name"), generate_id('b'), generate_id('a'))
+
+        for id_, argmnt in dargmnts_after.iteritems():
+            if dargmnts_before.get(id_) is not None:
+                diff_events(before_root, after_root, argmnt, -4, -1)
+
+    except Exception as e:
+        pass
 
 def browse(before, after):
     before_root = before.getroottree()
@@ -168,39 +213,9 @@ def browse(before, after):
 
             diff_devices(before_root, after_root, track_before, track_after)
 
-            # check slots
-	    # can't use diff : no Id
-	    # use xpath to check?
-            # or use index in clipslotlist
-            # before_slots = track_before.iterdescendants("ClipSlot")
-            # after_slots = track_after.iterdescendants("ClipSlot")
-	    # iterdescendants("Name") -> if created there is a name, even empty
+            diff_slots(before_root, after_root, track_before, track_after)
 
-            # check clips in arrangement view
-	    # "ClipTimeable"
-	    # "Events"
-
-            # get cliptimeable
-            # get all events
-
-            try:
-                cliptimeable_before = get_child(track_before, "ClipTimeable")
-                cliptimeable_after = get_child(track_after, "ClipTimeable")
-
-                before_argmnts = list(cliptimeable_before.iterdescendants("ArrangerAutomation"))
-                after_argmnts = list(cliptimeable_after.iterdescendants("ArrangerAutomation"))
-
-#                import pdb; pdb.set_trace()
-                (dargmnts_before, dargmnts_after, after_argmnt_names) =\
-                     diff(before_argmnts, after_argmnts, get_child_named("Name"), generate_id('b'), generate_id('a'))
-
-                for id_, argmnt in dargmnts_after.iteritems():
-                    if dargmnts_before.get(id_) is not None:
-                        diff_events(before_root, after_root, argmnt, -4, -1)
-
-            except Exception as e:
-#                print e
-                pass
+            diff_arrangement(before_root, after_root, track_before, track_after)
 
 def main():
     with open('./tests/test Project/test') as current_state:
