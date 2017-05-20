@@ -71,69 +71,81 @@ def diff_description(diff, names, action, prefix = ""):
     for index in diff:
         print "%s%s was added" % (prefix, names[index])
 
-def diff_events(before_root, after_root, parent, parent_index, type_index):
-    for param_events in parent.iterdescendants("Events"):
-        for param_event in param_events:
-            param_event_path = after_root.getpath(param_event)
-            before_event = before_root.xpath(param_event_path)
-                    
-            if (len(before_event)) > 0:
-                after_value = get_value(param_event)
-                before_value = get_value(before_event[0])
-                if before_value != after_value:
-                    print "\t\t%s's %s changed from %s to %s" %\
-                        (param_event_path.split('/')[parent_index]
-                        ,param_event_path.split('/')[type_index]
-                        ,before_value
-                        ,after_value)
-            else:
-                # FIXME: get device name or default to path name
-                # add value, add time
-                print "\t\t%s's %s event was added in automation" %\
-                        (param_event_path.split('/')[parent_index]
-                        ,param_event_path.split('/')[type_index])
+def diff_events_generator(parent_index, type_index, prefix = ""):
+    def wrapper(before_root, after_root, parent):
+        for param_events in parent.iterdescendants("Events"):
+            for param_event in param_events:
+                param_event_path = after_root.getpath(param_event)
+                before_event = before_root.xpath(param_event_path)
+                        
+                if (len(before_event)) > 0:
+                    after_value = get_value(param_event)
+                    before_value = get_value(before_event[0])
+                    if before_value != after_value:
+                        print "\t\t%s's %s changed from %s to %s" %\
+                            (param_event_path.split('/')[parent_index]
+                            ,param_event_path.split('/')[type_index]
+                            ,before_value
+                            ,after_value)
+                else:
+                    # FIXME: get device name or default to path name
+                    # add value, add time
+                    print "\t\t%s's %s event was added in automation" %\
+                            (param_event_path.split('/')[parent_index]
+                            ,param_event_path.split('/')[type_index])
+    return wrapper
 
-# TODO  make helpers on top of this to clean this?
-#       add prefix in helper generator
 #       add message to display to contextualize action
 #       add details about what was added or removed (AudioClip, MidiClip etc)
-def diff(before, after, name_cb, before_id_cb = get_id, after_id_cb = get_id):
-    before_names = map(name_cb, before)
-    after_names = map(name_cb, after)
+def diff_generator(name_cb, before_id_cb = get_id, after_id_cb = get_id, prefix = "", message = ""):
+    def wrapper(before, after, element_name = None):
+        before_names = map(name_cb, before)
+        after_names = map(name_cb, after)
+    
+        before_ids = map(before_id_cb, before)
+        after_ids = map(after_id_cb, after)
+    
+        id_diff = diff_index(before_ids, after_ids)
+    
+        diff_description(id_diff, before_names, "removed", prefix)
+    
+        id_diff = diff_index(after_ids, before_ids)
+    
+        diff_description(id_diff, after_names, "added", prefix)
+    
+        dbefore = dict(zip(before_ids, before)) 
+        dafter = dict(zip(after_ids, after)) 
+    
+        return (dbefore, dafter, after_names)
+    return wrapper
 
-    before_ids = map(before_id_cb, before)
-    after_ids = map(after_id_cb, after)
-
-    id_diff = diff_index(before_ids, after_ids)
-
-    diff_description(id_diff, before_names, "removed")
-
-    id_diff = diff_index(after_ids, before_ids)
-
-    diff_description(id_diff, after_names, "added")
-
-    dbefore = dict(zip(before_ids, before)) 
-    dafter = dict(zip(after_ids, after)) 
-
-    return (dbefore, dafter, after_names)
+__diff_events_mixer = diff_events_generator(-5, -4)
 
 def diff_mixer(before_root, after_root, track):
+    print "In the mixer"
+
     track_mixer = track.iterdescendants("Mixer").next()
 
-    diff_events(before_root, after_root, track_mixer, -5, -4)
+    __diff_events_mixer(before_root, after_root, track_mixer)
 
 # FIXME : use ids to be sure we are getting data from the same right devices
 #         in after and before
 #	  when doing diff of params
+__diff_devices = diff_generator(get_child_named("Name"), prefix="", message="")
+__diff_devices_events = diff_events_generator(-5, -4)
+
 def diff_devices(before_root, after_root, track_before, track_after):
     getchildren = partial(map, lambda d: d.getchildren())
-    concat = partial(reduce, lambda a, b : a + b)
+    concat = lambda a : reduce(lambda c, d: c + d, a, [])
+    #       partial(reduce, lambda a, b : a + b, partial=[])
 
-    before_devices = concat(getchildren(track_before.iterdescendants("Devices")))
-    after_devices = concat(getchildren(track_after.iterdescendants("Devices")))
+    get = compose(concat, getchildren)
+
+    before_devices = get(track_before.iterdescendants("Devices"))
+    after_devices = get(track_after.iterdescendants("Devices"))
 
     (ddevices_before, ddevices_after, after_device_names) =\
-         diff(before_devices, after_devices, get_child_named("Name"))
+         __diff_devices(before_devices, after_devices)
 
     for id_, device in ddevices_after.iteritems():
         if ddevices_before.get(id_) is not None:
@@ -142,28 +154,38 @@ def diff_devices(before_root, after_root, track_before, track_after):
             if device.tag == "AuPluginDevice":
                 continue
 
-            diff_events(before_root, after_root, device, -5, -4)
+            __diff_devices_events(before_root, after_root, device)
 
 def compose(*functions):
     return reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
+__diff_slots = diff_generator(get_child_named("Name"), get_time, get_time, "\t\t", "")
+__diff_slots_events = diff_events_generator(-5, -4)
+
 def diff_slots(before_root, after_root, track_before, track_after):
     has_clip = partial(filter, lambda x : len(x.getchildren()) > 0)
     getchildren = partial(map, lambda x : x.getchildren())
-    concat = partial(reduce, lambda a, b : a + b)
+    concat = lambda a : reduce(lambda c, d: c + d, a, [])
+    #       partial(reduce, lambda a, b : a + b, partial=[])
 
-    clipslots_before = concat(getchildren(has_clip(list(get_child(track_before, "ClipSlotList").iterdescendants("Value")))), [])
-    clipslots_after = concat(getchildren(has_clip(list(get_child(track_after, "ClipSlotList").iterdescendants("Value")))), [])
+    get = compose(concat, getchildren, has_clip, list)
 
-    print "In the Live view"
+    clipslots_before = get(get_child(track_before, "ClipSlotList").iterdescendants("Value"))
+    clipslots_after =  get(get_child(track_after, "ClipSlotList").iterdescendants("Value"))
+
+    # FIXME : condition, we don't want it all the time
+    print "\tIn the Live view"
 
     (dclipslots_before, dclipslots_after, after_clipslots_names) =\
-        diff(clipslots_before, clipslots_after, get_child_named("Name"), get_time, get_time)
+        __diff_slots(clipslots_before, clipslots_after)
 
     for time, clipslot in dclipslots_after.iteritems():
         if dclipslots_before.get(time) is not None:
             pass
-            # diff_events(before_root, after_root, device, -5, -4)
+            # __diff_slots_events(before_root, after_root, device)
+
+__diff_arrangement = diff_generator(get_child_named("Name"), generate_id('b'), generate_id('a'), "\t\t", "")
+__diff_arrangement_events = diff_events_generator(-4, -1)
 
 def diff_arrangement(before_root, after_root, track_before, track_after):
     try:
@@ -173,20 +195,25 @@ def diff_arrangement(before_root, after_root, track_before, track_after):
         getchildren = partial(map, lambda d: d.getchildren())
         concat = lambda a, b : a + b
 
-        after_argmnts = reduce(concat, getchildren(cliptimeable_after.iterdescendants("Events")))
-        before_argmnts = reduce(concat, getchildren(cliptimeable_before.iterdescendants("Events")))
+        get = compose(reduce, concat, getchildren)
 
-        print "In the Arrangement view"
+        after_argmnts = get(cliptimeable_after.iterdescendants("Events"))
+        before_argmnts = get(cliptimeable_before.iterdescendants("Events"))
+
+        # FIXME : condition, we don't want it all the time
+        print "\tIn the Arrangement view"
 
         (dargmnts_before, dargmnts_after, after_argmnt_names) =\
-             diff(before_argmnts, after_argmnts, get_child_named("Name"), generate_id('b'), generate_id('a'))
+             __diff_arrangement(before_argmnts, after_argmnts)
 
         for id_, argmnt in dargmnts_after.iteritems():
             if dargmnts_before.get(id_) is not None:
-                diff_events(before_root, after_root, argmnt, -4, -1)
+                diff_events(before_root, after_root, argmnt)
 
     except Exception as e:
         pass
+
+__diff_tracks = diff_generator(get_name, prefix="\t\t")
 
 def browse(before, after):
     before_root = before.getroottree()
@@ -199,13 +226,17 @@ def browse(before, after):
     after_tracks = get_child(after_liveset, "Tracks").getchildren()
 
     (dtracks_before, dtracks_after, after_track_names) =\
-                 diff(before_tracks, after_tracks, get_name)
+                 __diff_tracks(before_tracks, after_tracks)
 
     # Detect change inside track
 
     for id_, track_after in dtracks_after.iteritems():
         track_before = dtracks_before.get(id_)
         if track_before is not None:
+            # FIXME : display should be conditionned
+            # it's not because the track existed
+            # and exist that it changed
+
             print "In a track named %s" %\
                     after_track_names[dtracks_after.keys().index(id_)]
 
