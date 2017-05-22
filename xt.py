@@ -215,6 +215,10 @@ def diff_arrangement(before_root, after_root, track_before, track_after):
 
 __diff_tracks = diff_generator(get_name, prefix="\t\t")
 
+# FIXME : instead of printing the values
+#         store everything in dict and lists
+#         have helper functions display them in order?
+
 def browse(before, after):
     before_root = before.getroottree()
     after_root = after.getroottree()
